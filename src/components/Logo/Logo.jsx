@@ -1,21 +1,19 @@
 import React, { PureComponent } from 'react';
 import { Link } from 'react-router-dom';
-import * as fractal from 'fractal-web3';
+import * as qcRpc from '../../utils/quarkchainRPC';
 
 export default class Logo extends PureComponent {
   constructor(props) {
     super(props);
     this.state = {
-      networkType: '夸克公链(测试网)',
+      networkType: 'QuarkChain',
     };
   }
   componentDidMount = () => {
-    fractal.ft.getChainConfig().then(chainConfig => {
-      let networkType = '私网';
-      if (chainConfig.chainId == 1) {
-        networkType = '主网';
-      } else if (chainConfig.chainId == 100) {
-        networkType = '测试网';
+    qcRpc.getNetworkId().then(networkInfo => {
+      let networkType = 'QuarkChain-测试网';
+      if (networkInfo.networkId == 1) {
+        networkType = 'QuarkChain-主网';
       }
       this.setState({networkType});
     })

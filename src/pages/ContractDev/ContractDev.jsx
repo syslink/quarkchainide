@@ -500,7 +500,7 @@ export default class ContractManager extends Component {
         addBtnEnable = false;
         break;
       case NetworkType.LocalNode:  // local node
-        web3Provider = 'http://127.0.0.1:8545';
+        web3Provider = 'http://127.0.0.1:38391';
         networkName = web3Provider;
         break;
       case NetworkType.OtherNode:  // other node
