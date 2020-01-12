@@ -2,14 +2,13 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-restricted-syntax */
 import React, { Component, useState } from 'react';
-import { Search, Grid, Table, Feedback } from '@icedesign/base';
-import { Tag, Balloon } from '@alifd/next';
+import { Search, Grid } from '@icedesign/base';
+import { Message, Table, Button } from '@alifd/next';
 import IceContainer from '@icedesign/container';
-import * as fractal from 'fractal-web3'
 import ReactJson from 'react-json-view';
-import formatHighlight from 'json-format-highlight';
-import TransactionList from '../../TransactionList';
+import BigNumber from 'bignumber.js';
 import { T } from '../../utils/lang';
+import * as qcRpc from '../../utils/quarkchainRPC';
 import * as utils from '../../utils/utils';
 
 const { Row, Col } = Grid;
@@ -28,38 +27,65 @@ export default class TransactionTable extends Component {
       txReceiptData: {},
       src: null,
       setSrc: null,
+      accountShardsInfo: [],
+      address: '',
     };
   }
 
   onSearch = async (value) => {
-    const hash = value.key;
-    if (hash.indexOf('0x') === 0) {
-      let txInfo = await fractal.ft.getTransactionByHash(hash);
-      if (txInfo != null) {
-        const txReceiptData = await fractal.ft.getTransactionReceipt(hash);//formatHighlight(await fractal.ft.getTransactionReceipt(hash), COLOR_OPTION);
-        const txRawData = txInfo;//formatHighlight(txInfo, COLOR_OPTION);
-
-        this.setState({
-          txFrom: { txHashArr: [hash] },
-          txRawData,
-          txReceiptData
+    const hashOrAddr = value.key;
+    if (hashOrAddr.indexOf('0x') === 0) {
+      if (hashOrAddr.length == 50) {
+        this.state.address = hashOrAddr;
+        qcRpc.getAccountData(this.state.address, null, true).then(accountData => {
+          if (accountData.shards == null) {
+            this.state.accountShardsInfo = [accountData.primary];
+            this.setState({accountShardsInfo: this.state.accountShardsInfo});
+          } else {
+            this.state.accountShardsInfo = accountData.shards;
+            this.setState({accountShardsInfo: this.state.accountShardsInfo});
+          }
+        }).catch(error => {
+          Message.error('发生错误:' + error);
         });
       } else {
-        Feedback.toast.error(T('无法获取到交易信息'));
+        const txHash = hashOrAddr;
+        
+        let txInfo = await qcRpc.getTransactionByHash(txHash);
+        if (txInfo != null) {
+          const txReceiptData = await qcRpc.getTransactionReceipt(txHash);//formatHighlight(await fractal.ft.getTransactionReceipt(hash), COLOR_OPTION);
+          const txRawData = txInfo;//formatHighlight(txInfo, COLOR_OPTION);
+
+          this.setState({
+            txFrom: { txHashArr: [txHash] },
+            txRawData,
+            txReceiptData
+          });
+        } else {
+          Message.error(T('无法获取到交易信息'));
+        }
       }
     } else {
-      Feedback.toast.prompt(T('请输入十六进制的hash值'));
+      Message.prompt(T('请输入十六进制的交易hash或账户地址'));
     }
   }
 
   // value为filter的值，obj为search的全量值
   onFilterChange = () => {
   }
+  
+  balancesRender = (balances) => {
+    let newBalances = utils.deepClone(balances);
+    newBalances = newBalances.map(balance => {
+      balance.balance = new BigNumber(balance.balance).shiftedBy(-18) + ' ' + balance.tokenStr;
+      return balance;
+    });
+    return <ReactJson src={newBalances}/>;
+  }
 
-  renderGasAllot = (value, index, record) => {
-    return record.gasAllot.map((gasAllot) => {
-      const defaultTrigger = <Tag type="normal" size="small">{gasAllot.account}->{gasAllot.gas}aft</Tag>;
-      return <Balloon trigger={defaultTrigger} closable={false}>{gasAllot.account}->{gasAllot.gas}aft</Balloon>;
+  getTxsByAddr = () => {
+    qcRpc.getTransactionsByAddress(this.state.address, '0x00', '0xff', '').then(txs => {
+      console.log(txs);
     });
   }
 
@@ -73,15 +99,13 @@ export default class TransactionTable extends Component {
                 size="large"
                 autoWidth="true"
                 onSearch={this.onSearch.bind(this)}
-                placeholder={T("交易hash")}
+                placeholder={T("交易hash/账户地址，0x开头")}
                 onFilterChange={this.onFilterChange.bind(this)}
               />
             </Col>
           </Row>
         </IceContainer>
         <br /><br />
-        <TransactionList txFrom={this.state.txFrom}/>
-        <br />
         <IceContainer style={styles.container}>
           <h4 style={styles.title}>{T('交易原始信息')}</h4>
           <ReactJson
@@ -96,6 +120,18 @@ export default class TransactionTable extends Component {
             src={this.state.txReceiptData}
           />
           {/* <div dangerouslySetInnerHTML={{__html: this.state.txReceiptData}} /> */}
+        </IceContainer>
+        <br /><br />
+        <IceContainer style={styles.container}>
+          <h4 style={styles.title}>{T('账户信息')}</h4>
+          <Table dataSource={this.state.accountShardsInfo}>
+            <Table.Column title="链Id" dataIndex="chainId" cell={chainId => parseInt(chainId)}/>
+            <Table.Column title="分片Id" dataIndex="shardId" cell={shardId => parseInt(shardId)}/>
+            <Table.Column title="资产" dataIndex="balances" cell={this.balancesRender} width={'50%'}/>
+            <Table.Column title="总交易数" dataIndex="transactionCount" 
+                          cell={count => <Button text onClick={() => {this.getTxsByAddr();}}>{parseInt(count)}</Button>}/>
+            <Table.Column title="是否合约" dataIndex="isContract" cell={isContract => isContract ? '是' : '否'}/>
+          </Table>
         </IceContainer>
       </div>
     );

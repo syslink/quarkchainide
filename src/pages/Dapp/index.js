@@ -9,9 +9,9 @@ const { Row, Col } = Grid;
 
 const dataSource = [
   {
-    title: 'FTUniSwap',
+    title: 'QKC-UniSwap',
     subject:
-      'FTUniSwap是FT公链上的DEX实现，基于“恒定乘积自动做市“模型，与传统的中心化和DEX具有很大的差别。主要特点：无订单簿，无做市商；任何人可以提供流动性，并获取奖励',
+      'QKCUniSwap是QuarkChain公链上的DEX实现，基于“恒定乘积自动做市“模型，与传统的中心化和DEX具有很大的差别。主要特点：无订单簿，无做市商；任何人可以提供流动性，并获取奖励',
     headPic: require('./images/uniswaplogo.jpg'),
     pic: require('./images/uniswap.jpg'),
     platform: 'mainnet',
@@ -27,8 +27,8 @@ const dataSource = [
     to: '/AISoccerMaster',
   },
   {
-    title: 'AragonOnFT',
-    subject: 'AragonOnFT致力于打造一个无专业门槛的 DAO 定制化平台，便于企业利用区块链治理技术降低运营开支和操作成本。',
+    title: 'AragonOnQKC',
+    subject: 'AragonOnQKC致力于打造一个无专业门槛的 DAO 定制化平台，便于企业利用区块链治理技术降低运营开支和操作成本。',
     headPic: require('./images/aragonLogo.jpg'),
     pic: require('./images/aragon.jpg'),
     platform: 'mainnet',
@@ -37,11 +37,11 @@ const dataSource = [
   {
     title: '去中心化投融资',
     subject:
-      '通过在FT公链上实现投资人与项目方的有效协作，主要特点：融资后的资金自动锁定在合约内;项目方不能直接动用融资款;投资者持有项目Token，通过投票管理项目资产',
+      '通过在QuarkChain公链上实现投资人与项目方的有效协作，主要特点：融资后的资金自动锁定在合约内;项目方不能直接动用融资款;投资者持有项目Token，通过投票管理项目资产',
     headPic: require('./images/fundLogo.jpg'),
     pic: require('./images/fund.jpg'),
     platform: 'bothnet',
-    to: '/uniswap',
+    to: '/dfund',
   },
 ];
 

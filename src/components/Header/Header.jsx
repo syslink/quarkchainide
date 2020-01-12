@@ -17,6 +17,7 @@ import { createHashHistory } from 'history';
 import cx from 'classnames';
 import { Link } from 'react-router-dom';
 import * as fractal from 'fractal-web3';
+import * as qcRpc from '../../utils/quarkchainRPC';
 import { headerMenuConfig } from '../../menuConfig';
 import Logo from '../Logo';
 import * as utils from '../../utils/utils';
@@ -41,19 +42,19 @@ export default class Header extends PureComponent {
       current: null,
       nodeConfigVisible: false,
       nodeInfo,
-      chainId: 0,
+      networkId: 0,
       customNodeDisabled: true,
       languages: [{value: 'ch', label:'中文'}, {value: 'en', label:'English'}],
       defaultLang: (defaultLang == null || defaultLang == 'ch') ? 'ch' : 'en',
-      nodes: [{value: constant.mainNetRPCAddr, label:'主网' + constant.mainNetRPCAddr}, {value: constant.testNetRPCAddr, label:'测试网' + constant.testNetRPCAddr}, 
+      nodes: [{value: constant.mainNetRPCAddr, label:'主网' + constant.mainNetRPCAddr + '(即将支持)'}, {value: constant.testNetRPCAddr, label:'测试网' + constant.testNetRPCAddr}, 
               {value: constant.LocalRPCAddr, label:'本地节点' + constant.LocalRPCAddr}, {value: 'others', label: '自定义'}],
     };
     setLang(this.state.defaultLang);
   }
   componentDidMount = () => {
-    fractal.ft.getChainConfig().then(chainConfig => {
-      this.setState({chainId: chainConfig.chainId});
-    })
+    qcRpc.getNetworkId().then(networkInfo => {
+      this.state.networkId = networkInfo.networkId;
+    });
   }
   openSetDialog = () => {
     this.setState({ nodeConfigVisible: true });
@@ -76,8 +77,10 @@ export default class Header extends PureComponent {
     cookie.save('nodeInfo', nodeInfo, {path: '/', maxAge: 3600 * 24 * 360});
     axios.defaults.baseURL = nodeInfo;
     this.setState({ nodeConfigVisible: false, nodeInfo });
-    fractal.utils.setProvider(nodeInfo);
-    this.state.chainId = fractal.ft.getChainId();
+    qcRpc.setProvider(nodeInfo);
+    qcRpc.getNetworkId().then(networkInfo => {
+      this.state.networkId = networkInfo.networkId;
+    });
     //history.push('/');
     location.reload(true);
   }
@@ -174,18 +177,18 @@ export default class Header extends PureComponent {
           className="ice-design-layout-header-menu"
           style={{ display: 'flex' }}
         >
-          {/* <Select
+          <Select
             style={{ width: 100 }}
             placeholder={T("语言")}
             onChange={this.onChangeLanguage.bind(this)}
             dataSource={this.state.languages}
             defaultValue={this.state.defaultLang}
           />
-          &nbsp;&nbsp; */}
+          &nbsp;&nbsp;
 
-          {/* <Balloon trigger={defaultTrigger} closable={false}>
-            {T('当前连接的节点')}:{this.state.nodeInfo}, ChainId:{this.state.chainId}
-          </Balloon> */}
+          <Balloon trigger={defaultTrigger} closable={false}>
+            {T('当前连接的节点')}:{this.state.nodeInfo}, NetworkId: {this.state.networkId}
+          </Balloon>
           <Dialog
             visible={this.state.nodeConfigVisible}
             title={T("配置需连接的节点")}

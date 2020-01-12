@@ -15,6 +15,7 @@ import configureStore from './configureStore';
 import cookie from 'react-cookies';
 import { setLang } from './utils/lang';
 import * as constant from './utils/constant';
+import * as qcRpc from './utils/quarkchainRPC';
 
 const defaultLang = cookie.load('defaultLang');
 if (defaultLang != null) {
@@ -31,7 +32,7 @@ axios.defaults.baseURL = constant.testNetRPCAddr;
 const nodeInfo = cookie.load('nodeInfo');
 if (nodeInfo != null && nodeInfo !== '') {
   axios.defaults.baseURL = nodeInfo;
-  fractal.utils.setProvider(nodeInfo);
+  qcRpc.setProvider(nodeInfo);
 }
 
 if (!window.localStorage) {

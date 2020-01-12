@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 import { Select } from '@icedesign/base';
-import { Button, Tab, Grid, Tree, Dialog, Collapse, Message, Input, Card, Checkbox } from '@alifd/next';
+import { Button, Tab, Grid, Tree, Dialog, Collapse, Message, Input, Card, Checkbox, Table, Icon, Balloon } from '@alifd/next';
 import Container from '@icedesign/container';
 import * as hyperchain from 'hyperchain-web3';
 import {AbiCoder as EthersAbiCoder} from 'ethers/utils/abi-coder';
@@ -36,11 +36,11 @@ const TxReceiptResult = ({self, contractAddress, funcName}) => {
     <br /><br />
     交易信息:<br />
     <ReactJson key='txInfoResult' id={contractAddress + funcName + 'TxInfo'}
-      src={utils.isEmptyObj(self.state.result[contractAddress + funcName + 'TxInfo']) ? {} : JSON.parse(self.state.result[contractAddress + funcName + 'TxInfo'])}
+      src={utils.isEmptyObj(self.state.result[contractAddress + funcName + 'TxInfo']) ? {} : self.state.result[contractAddress + funcName + 'TxInfo']}
     />
     <br />Receipt信息:<br />
     <ReactJson key='receiptInfoResult' id={contractAddress + funcName + 'ReceiptInfo'}
-      src={utils.isEmptyObj(self.state.result[contractAddress + funcName + 'ReceiptInfo']) ? {} : JSON.parse(self.state.result[contractAddress + funcName + 'ReceiptInfo'])}
+      src={utils.isEmptyObj(self.state.result[contractAddress + funcName + 'ReceiptInfo']) ? {} : self.state.result[contractAddress + funcName + 'ReceiptInfo']}
     />
    
   </div>
@@ -79,7 +79,7 @@ const Transfer = ({self, contractAddress, funcName}) => {
         onChange={self.handleParaValueChange.bind(self, contractAddress, funcName, 'transferAssetValue')}
         style={{ width: 500 }}
         addonTextBefore={T('转账金额')}
-        addonTextAfter={T('ETH')}
+        addonTextAfter={T('QKC')}
         size="medium"
       />
     </Container>
@@ -107,9 +107,9 @@ const OneFunc = ({self, contractAddress, funcName, parameterTypes, parameterName
           <br />
           {
             callInvoke ? <ReactJson key='callResult' src={utils.isEmptyObj(self.state.result[contractAddress + funcName]) ? 
-                                                            {} : JSON.parse(self.state.result[contractAddress + funcName])}/>
+                                                            {} : self.state.result[contractAddress + funcName]}/>
                          :
-                        <Input.TextArea autoHeight readOnly style={{ width: 600 }} 
+                         <Input.TextArea autoHeight readOnly style={{ width: 600 }} 
                                     value={self.state.result[contractAddress + funcName]}
                                     addonTextBefore={T('结果')} size="medium"/>
           }
@@ -218,7 +218,8 @@ export default class ContractManager extends Component {
     const abiContractName = cookie.load('abiContractName');
 
     this.state = {
-      fullShardKey: '000015C0',
+      fullShardKey: '00000000',
+      networkId: '0xff',
       password: '',
       httpReg: new RegExp('^(?=^.{3,255}$)(http(s)?:\/\/)?(www\.)?[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+(:\d+)*(\/\w+\.\w+)*$'),
       networks:[{label: '通过MetaMask连接夸克', value: NetworkType.MetaMask}, {label: '本地节点', value: NetworkType.LocalNode}, {label: '自定义节点', value: NetworkType.OtherNode}],
@@ -271,10 +272,11 @@ export default class ContractManager extends Component {
       contractInfoVisible: false,
       displayAbiVisible: false,
       displayBinVisible: false,
+      accountInfoDialogVisible: false,
       curAbi: null,
       curBin: null,
       loadedContractAddress: '',
-      qcRpcSrv: 'http://qcrpc.xchainunion.com',
+      qcRpcSrv: Constant.testNetRPCAddr,
       compileSrv: 'http://52.194.255.222:8081',
       selectContactFile: '',
       selectedFileToCompile: null,
@@ -294,8 +296,18 @@ export default class ContractManager extends Component {
       compilerVersionList: [],
       compilerVersion: '0.5.11+commit.22be8592',
 
+      chainShardsInfo: {},
+      chainIds: [],
+      shardIds: [],
       selectedChainId: 'ChainID:0',
-      selectedShardId: "ShardID:0",
+      selectedShardId: 'ShardId:0',
+      queryedAddress: '',
+
+      accountShardsInfo: [],
+      assetListFooter: (<view>
+                          <Button type='primary' onClick={this.queryAccount.bind(this)}>{T('刷新')}</Button>
+                          <Button type='normal' onClick={this.onAccountInfoClose.bind(this)}>{T('取消')}</Button>
+                        </view>),
      };
       
     const solFileList = global.localStorage.getItem('solFileList');
@@ -326,6 +338,12 @@ export default class ContractManager extends Component {
       this.state.networks = this.state.networksWithoutMetaMask;
     }
 
+    const nodeInfo = cookie.load('nodeInfo');
+    if (!utils.isEmptyObj(nodeInfo)) {
+      this.state.qcRpcSrv = nodeInfo;
+      qcRpc.setProvider(nodeInfo);
+    }
+
     if (window.web3) {
       this.state.web3 = new Web3(window.web3);
       QuarkChain.injectWeb3(this.state.web3, this.state.qcRpcSrv);      
@@ -335,20 +353,38 @@ export default class ContractManager extends Component {
   componentDidMount = async () => {
     await this.initAddresses();
 
+    qcRpc.getNetworkId().then(networkInfo => {
+      this.state.networkId = networkInfo.networkId;
+      // {"chainSize":"0x2","mining":true,"networkId":"0xee5","shardServerCount":2,"shardSizes":["0x1","0x1"],"syncing":false}
+      this.state.chainIds = [];      
+      for (let i = 0; i < networkInfo.chainSize; i++) {
+        const chainIdName = 'ChainId:' + i;
+        this.state.chainIds.push(chainIdName);
+        const shardIds = [];
+        for (let j = 0; j < networkInfo.shardSizes[i]; j++) {
+          shardIds.push('ShardId:' + j);
+        }
+        this.state.chainShardsInfo[chainIdName] = shardIds;
+      }
+      this.setState({chainIds: this.state.chainIds});
+    });
+
     hyperchain.utils.setProvider(this.state.compileSrv);      
     this.syncSolFileToSrv();  
 
-    const libFiles = await CompilerSrv.getLibSolFile();
-    for(var fileName in libFiles) {
-      this.state.libFileList.push(fileName);
-      global.localStorage.setItem('sol:' + fileName, libFiles[fileName]);
-    }
+    CompilerSrv.getLibSolFile().then(libFiles => {
+      for(var fileName in libFiles) {
+        this.state.libFileList.push(fileName);
+        global.localStorage.setItem('sol:' + fileName, libFiles[fileName]);
+      }
+    });
     
-    const sampleFiles = await CompilerSrv.getSampleSolFile();
-    for(var fileName in sampleFiles) {
-      this.state.smapleFileList.push(fileName);
-      global.localStorage.setItem('sol:' + fileName, sampleFiles[fileName]);
-    }  
+    CompilerSrv.getSampleSolFile().then(sampleFiles => {
+      for(var fileName in sampleFiles) {
+        this.state.smapleFileList.push(fileName);
+        global.localStorage.setItem('sol:' + fileName, sampleFiles[fileName]);
+      }  
+    });
 
     this.setState({libFileList: this.state.libFileList, smapleFileList: this.state.smapleFileList,
                    addresses: this.state.addresses, selectedAccountAddress: this.state.addresses.length > 0 ? this.state.addresses[0] : ''});
@@ -500,12 +536,14 @@ export default class ContractManager extends Component {
 
   onChangeChainId = (v) => {
     this.state.selectedChainId = v;
-    this.state.fullShardKey = '000' + v.split(':')[1] + '15C0';
-    this.setState({ selectedChainId: v });
+    this.state.shardIds = this.state.chainShardsInfo[v];
+    this.state.fullShardKey = '000' + v.split(':')[1] + '000' + this.state.shardIds[0].split(':')[1];
+    this.setState({ selectedChainId: v, shardIds: this.state.shardIds });
   }
 
   onChangeShardId = (v) => {
     this.state.selectedShardId = v;
+    this.state.fullShardKey = '000' + this.state.selectedChainId.split(':')[1] + '000' + v.split(':')[1];
     this.setState({ selectedShardId: v });
   }
 
@@ -595,7 +633,7 @@ export default class ContractManager extends Component {
       return;
     }
     
-    copy(this.state.selectedAccountAddress);
+    copy(this.state.selectedAccountAddress + this.state.fullShardKey);
     Message.success(T('地址已复制到粘贴板'));
   }
 
@@ -609,6 +647,17 @@ export default class ContractManager extends Component {
     utils.storeDataToFile(Constant.KeyStoreFile, keystoreList);
     this.setState({addresses: this.state.addresses});
     Message.success(T('地址添加成功'));
+  }
+
+  getAccountData = () => {
+    if (utils.isEmptyObj(this.state.selectedAccountAddress)) {
+      Message.error(T('请选择需要拷贝的地址'));
+      return;
+    }
+
+    qcRpc.getAccountData(this.state.selectedAccountAddress + this.state.fullShardKey, null, true).then(accountData => {
+      this.setState({accountInfoDialogVisible: true, accountShardsInfo: accountData.shards, queryedAddress: this.state.selectedAccountAddress});
+    });
   }
 
   findImports = (path) => {
@@ -804,14 +853,15 @@ export default class ContractManager extends Component {
         data: '0x' + contractBin + constructorPayload,
         fromFullShardKey: '0x' + this.state.fullShardKey,
         toFullShardKey: '0x' + this.state.fullShardKey,
+        networkId: this.state.networkId,
       }
 
       if (this.state.keystoreInfo[this.state.selectedAccountAddress] != null) {
         this.state.web3.qkc.setPrivateKey(this.state.keystoreInfo[this.state.selectedAccountAddress].privateKey);
       }
-      qcRpc.getTransactionCount(this.state.selectedAccountAddress + this.state.fullShardKey).then(result => {
-        console.log(this.state.selectedAccountAddress + ':' + result);
-      });
+      // qcRpc.getTransactionCount(this.state.selectedAccountAddress + this.state.fullShardKey).then(result => {
+      //   console.log(this.state.selectedAccountAddress + ':' + result);
+      // });
       Message.success('开始部署合约');
       this.state.web3.qkc.sendTransaction(txParams).then((transactionId) => {
         if (transactionId.startsWith('0x0000000000000000')) {
@@ -838,8 +888,8 @@ export default class ContractManager extends Component {
     let count = 0;
     const self = this;
     const intervalId = setInterval(async () => {
-      const receipt = await self.state.web3.eth.getTransactionReceipt(txHash);
-      if (receipt == null) {
+      const receipt = await qcRpc.getTransactionReceipt(txHash);
+      if (receipt == null || receipt.blockHeight == 0) {
         count++;
         self.addRawLog(count + 's...');
         if (count == 60) {
@@ -853,7 +903,7 @@ export default class ContractManager extends Component {
         clearInterval(intervalId);
         const status = receipt.status;
         if (status == 0) {
-          Feedback.toast.error(actionName + T('交易执行失败'));
+          Message.error(actionName + T('交易执行失败'));
         } else if (cbFunc != null) {
           cbFunc(receipt);
         }
@@ -911,51 +961,57 @@ export default class ContractManager extends Component {
     myContract = myContract.at(contractAddress);
     //const contractFunc = myContract.methods[funcName];
     const simulate = this.state.funcParaConstant[contractAddress][funcName];
+    const payload = this.getContractPayload(funcName, this.state.funcParaTypes[contractAddress][funcName], values);
+    const txParams = {
+      from: this.state.selectedAccountAddress + this.state.fullShardKey,
+      to: contractAddress,
+      gasPrice: '0x3b9aca00',
+      gas: '0xf4240',
+      value: '0x0',
+      data: payload,
+      gasTokenId: '0x8bb0',
+      transferTokenId: '0x8bb0',
+      networkId: this.state.networkId,
+    }
     if (simulate) {
-      const payload = this.getContractPayload(funcName, this.state.funcParaTypes[contractAddress][funcName], values);
-      const txParams = {
-        from: this.state.selectedAccountAddress + this.state.fullShardKey,
-        to: contractAddress,
-        gasPrice: '0x3b9aca00',
-        gas: '0xf4240',
-        value: '0x0',
-        data: payload,
-        gasTokenId: '0x8bb0',
-        transferTokenId: '0x8bb0'
-      }
-      qcRpc.call(txParams, 'latest').then(result => {
-        self.state.result[contractAddress + funcName] = JSON.stringify(result);
+      qcRpc.call(txParams, 'latest').then(ret => {
+        ret = utils.parseResult(self.state.funcResultOutputs[contractAddress][funcName], ret);
+        this.addLog("调用函数" + funcName + "获得的结果：" + ret);
+        self.state.result[contractAddress + funcName] = {'结果': ret};
         self.setState({result: self.state.result});
       });
     } else {
-      let waitTxLogId;
-      let value = this.state.transferTogether[contractAddress + funcName] ? 
+      let transferAmount = this.state.transferTogether[contractAddress + funcName] ? 
                     new BigNumber(this.state.paraValue[contractAddress + '-' + funcName + '-transferAssetValue']) : new BigNumber(0);
-      const option = {from: this.state.selectedAccountAddress};           
-      if (value.gt(new BigNumber(0))) {
-        value = new BigNumber(value).shiftedBy(18);
-        option.value = value;
-      }           
-      contractFunc(...values).send(option)
-      .on('transactionHash', function(txHash) {
-        self.state.result[contractAddress + funcName] = txHash;
-        self.setState({result: self.state.result});
-        self.addLog('交易hash:' + txHash + '，等待被打包')
-        waitTxLogId = setInterval(() => { 
-          self.addRawLog('>>');
-        }, 1000);
-      })
-      .on('receipt', function(receipt) {
-        clearTimeout(waitTxLogId);
-        self.addRawLog('\n\n');
-        self.addLog('交易receipt:' + JSON.stringify(receipt));
-      })
-      .on('confirmation', function(confirmationNumber, receipt) {
-        if (confirmationNumber == 6) {
-          self.addLog('确认区块数已达到：'  + confirmationNumber + '个'); 
-        }
-      })
-      .on('error', error => self.addLog('发生错误：' + JSON.stringify(error)));
+      if (transferAmount.gt(new BigNumber(0))) {
+        transferAmount = new BigNumber(transferAmount).shiftedBy(18);
+        txParams.value = '0x' + transferAmount.toString(16);
+      }  
+      
+      txParams.fromFullShardKey = '0x' + this.state.fullShardKey;
+      txParams.toFullShardKey = '0x' + this.state.fullShardKey;
+
+      const self = this;
+      this.state.web3.qkc.sendTransaction(txParams).then((transactionId) => {
+        if (transactionId.startsWith('0x0000000000000000')) {
+          Message.error('合约调用失败，请检查原因');
+          return;
+        } 
+        Message.success('调用合约的交易发送成功，等待区块生成');
+        self.addLog('交易发送成功，ID = ' + transactionId + ' ，等待被矿工打包'); 
+        self.state.result[contractAddress + funcName] = transactionId;
+        qcRpc.getTransactionByHash(transactionId).then(txInfo => {
+          self.state.result[contractAddress + funcName + 'TxInfo'] = txInfo;
+          self.setState({result: self.state.result});
+        })
+        
+        self.checkReceipt('合约方法调用', transactionId, async (receipt) => {
+          Message.success('合约方法调用成功');
+          self.state.result[contractAddress + funcName + 'TxInfo'] = await qcRpc.getTransactionByHash(transactionId);
+          self.state.result[contractAddress + funcName + 'ReceiptInfo'] = receipt;
+          self.setState({result: self.state.result});
+        });
+      });
     }
   }
 
@@ -971,9 +1027,9 @@ export default class ContractManager extends Component {
         return;
       }
       
-      this.state.web3.eth.getTransaction(txHash).then(txInfo => {        
+      qcRpc.getTransactionByHash(txHash).then(txInfo => {        
         this.addLog("交易信息\n" + JSON.stringify(txInfo));
-        this.state.result[contractAddress + funcName + 'TxInfo'] = JSON.stringify(txInfo);
+        this.state.result[contractAddress + funcName + 'TxInfo'] = txInfo;
         this.setState({result: this.state.result});
       });
     }
@@ -986,13 +1042,13 @@ export default class ContractManager extends Component {
         Message.error(T('非交易hash，无法查询'));
         return;
       }
-      this.state.web3.eth.getTransactionReceipt(txHash).then(receipt => {        
+      qcRpc.getTransactionReceipt(txHash).then(receipt => {
         if (receipt == null) {
           Message.error(T('区块尚未被打包，receipt尚未生成'));
           return;
         }
         this.addLog("receipt\n" + JSON.stringify(receipt));
-        this.state.result[contractAddress + funcName + 'ReceiptInfo'] = JSON.stringify(receipt);
+        this.state.result[contractAddress + funcName + 'ReceiptInfo'] = receipt;
         this.setState({result: this.state.result});
         
         if (!receipt.status) {
@@ -1125,6 +1181,50 @@ export default class ContractManager extends Component {
   handlePasswordChange = (v) => {
     this.state.password = v;
   }
+
+  handleAddressChange = (v) => {
+    this.state.queryedAddress = v;
+    this.setState({queryedAddress: v});
+  }
+
+  queryAccount = () => {
+    if (utils.isEmptyObj(this.state.queryedAddress)) {
+      this.state.queryedAddress = this.state.selectedAccountAddress;
+      if (utils.isEmptyObj(this.state.queryedAddress)) {
+        Message.error('请输入待查询账号');
+        return;
+      }
+    }
+    if (!this.state.queryedAddress.startsWith('0x')) {
+      this.state.queryedAddress = '0x' + this.state.queryedAddress;
+    }
+    if (this.state.queryedAddress.length == 42) {
+      this.state.queryedAddress += this.state.fullShardKey;
+    }
+    if (this.state.queryedAddress.length != 50) {
+      Message.error('账号格式错误，请修改后再查询');
+      return;
+    }
+    const self = this;
+    qcRpc.getAccountData(this.state.queryedAddress, null, true).then(accountData => {
+      if (accountData.shards == null) {
+        self.state.accountShardsInfo = [accountData.primary];
+        self.setState({accountShardsInfo: self.state.accountShardsInfo});
+      } else {
+        this.state.accountShardsInfo = accountData.shards;
+        self.setState({accountShardsInfo: self.state.accountShardsInfo});
+      }
+    }).catch(error => {
+      Message.error('发生错误:' + error);
+    });
+  }
+
+  getTxsByAddr = () => {
+    qcRpc.getTransactionsByAddress(this.state.queryedAddress + this.state.fullShardKey, '0x00', '0xff', "0x8bb0").then(txs => {
+      console.log(txs);
+    });
+  }
+
   onAddNewContractFileOK = () => {
     if (!this.state.newContractFileName.endsWith('.sol')) {
       this.state.newContractFileName = this.state.newContractFileName + '.sol';
@@ -1404,23 +1504,29 @@ export default class ContractManager extends Component {
     }
   }
 
-  onPwdOK = () => {
-    if(!utils.checkPassword(this.state.password)) {
-      Message.error(T('密码格式无效！'));
-      return;
-    }
-    this.signTxAndSend(this.state.txInfo);    
-    this.onPwdClose();
+  onAccountInfoOK = () => { 
+    this.onAccountInfoClose();
   }
 
-  onPwdClose = () => {
+  onAccountInfoClose = () => {
     this.setState({
-      pwdDialogVisible: false,
+      accountInfoDialogVisible: false,
     });
   };
 
+  balancesRender = (balances) => {
+    let newBalances = utils.deepClone(balances);
+    newBalances = newBalances.map(balance => {
+      balance.balance = new BigNumber(balance.balance).shiftedBy(-18) + ' ' + balance.tokenStr;
+      return balance;
+    });
+    return <ReactJson src={newBalances}/>;
+  }
+
   render() {
     global.localStorage.setItem("solFileList", this.state.solFileList);
+    const triggerBtn = <Button text iconSize='large' style={{marginBottom: "5px"}} onClick={() => this.setState({resultInfo: '日志输出:\n'})}><Icon type="ashbin" size='large'/></Button>;
+              
     const self = this;
     return (
       <div>
@@ -1489,7 +1595,11 @@ export default class ContractManager extends Component {
               </Tab>
               
               <br />
-              <br />
+              <Row justify='end'>
+                <Balloon trigger={triggerBtn} closable={false}>
+                    {T('清空日志')}
+                </Balloon>
+              </Row>
               <Input.TextArea hasClear
                 autoHeight={{ minRows: 20, maxRows: 20 }} 
                 value={this.state.resultInfo}
@@ -1517,7 +1627,7 @@ export default class ContractManager extends Component {
                   placeholder={T("选择Chain ID")}
                   value={this.state.selectedChainId}
                   onChange={this.onChangeChainId.bind(this)}
-                  dataSource={['ChainId:0', 'ChainId:1', 'ChainId:2', 'ChainId:3', 'ChainId:4', 'ChainId:5', 'ChainId:6', 'ChainId:7']}
+                  dataSource={this.state.chainIds}
                 />
                 &nbsp;&nbsp;
                 <Select
@@ -1525,7 +1635,7 @@ export default class ContractManager extends Component {
                   placeholder={T("选择Shard ID")}
                   value={this.state.selectedShardId}
                   onChange={this.onChangeShardId.bind(this)}
-                  dataSource={['ShardId:0']}
+                  dataSource={this.state.shardIds}
                 />
               </Row>
               <Row style={{width: '100%', color: '#fff'}}>
@@ -1543,9 +1653,11 @@ export default class ContractManager extends Component {
               </Row>
               <br/>
               <Row style={{width: '100%'}}>
-                <Button type="primary" onClick={this.copyAddress.bind(this)}>{T("复制账号")}</Button>
+                <Button type="primary" onClick={this.copyAddress.bind(this)}>{T("复制完整账号")}</Button>
                 &nbsp;&nbsp;&nbsp;
                 <Button type="primary" onClick={this.addAddress.bind(this)}>{T("添加新账号")}</Button>
+                &nbsp;&nbsp;&nbsp;
+                <Button type="primary" onClick={this.getAccountData.bind(this)}>{T("查询账号")}</Button>
               </Row>
               <br/>
               <Row style={{width: '100%'}}>
@@ -1706,7 +1818,7 @@ export default class ContractManager extends Component {
         >
           <IceEllipsis lineNumber={10} text= {this.state.curBin} />
         </Dialog>
-        <Dialog
+        {/* <Dialog
           visible={this.state.pwdDialogVisible}
           onOk={this.onPwdOK.bind(this)}
           onCancel={this.onPwdClose}
@@ -1729,7 +1841,39 @@ export default class ContractManager extends Component {
           <br/>
           <br/>
           注意:刷新/切换/关闭本页面后，需重新输入密码
+        </Dialog> */}
+        <Dialog style={{ width: "50%" }}
+          visible={this.state.accountInfoDialogVisible}
+          onOk={this.onAccountInfoClose.bind(this)}
+          onCancel={this.onAccountInfoClose}
+          onClose={this.onAccountInfoClose}
+          title={T("账户资产信息")}
+          footerAlign="center"
+          footerActions="ok"
+          footer={this.state.assetListFooter}
+        >
+          <Input hasClear
+            onChange={this.handleAddressChange.bind(this)}
+            style={{ width: "70%" }}
+            addonTextBefore={T("当前账号")}
+            size="medium"
+            value={this.state.queryedAddress}
+            hasLimitHint
+            onPressEnter={this.queryAccount.bind(this)}
+          />
+          <br/>
+          <br/>
+          <Table dataSource={this.state.accountShardsInfo}>
+            <Table.Column title="链Id" dataIndex="chainId" cell={chainId => parseInt(chainId)}/>
+            <Table.Column title="分片Id" dataIndex="shardId" cell={shardId => parseInt(shardId)}/>
+            <Table.Column title="资产" dataIndex="balances" cell={this.balancesRender} width={'50%'}/>
+            <Table.Column title="总交易数" dataIndex="transactionCount" 
+                          cell={count => <Button text onClick={() => {this.getTxsByAddr();}}>{parseInt(count)}</Button>}/>
+            <Table.Column title="是否合约" dataIndex="isContract" cell={isContract => isContract ? '是' : '否'}/>
+          </Table>
         </Dialog>
+        
+
       </div>
     );
   }

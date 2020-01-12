@@ -19,14 +19,14 @@ export default class Footer extends PureComponent {
             <Logo />
           </div>
           <div className="copyright">
-            © 2019 Theme designed by{' '}
+            © 2020 Theme designed by{' '}
             <a
-              href="https://github.com/fractalplatform/fractal"
+              href="https://xChainUnion.com/"
               target="_blank"
               className="copyright-link"
               rel="noopener noreferrer"
             >
-              FRACTAL
+              xChainUnion
             </a>
           </div>
         </div>

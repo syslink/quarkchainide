@@ -19,6 +19,11 @@ const headerMenuConfig = [
     path: '/study',
     icon: 'code',
   },
+  {
+    name: T('交易/账户查询'),
+    path: '/Transaction',
+    icon: 'code',
+  },
 ];
 
 const asideMenuConfig = [ 

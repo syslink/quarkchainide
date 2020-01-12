@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-var provider = 'http://qcrpc.xchainunion.com';
+var provider = 'http://qkcTestnet.xchainunion.com';
 
 function setProvider(newProvider) {
   provider = newProvider;
@@ -16,18 +14,71 @@ async function call(callInfo, blockNum) {
   });
 }
 
+async function getNetworkId() {
+  const dataToSrv = JSON.stringify({ jsonrpc: '2.0',
+    method: 'networkInfo',
+    params: [],
+    id: 1 });
+  return postToNode({
+    data: dataToSrv,
+  });
+}
+
 async function getTransactionCount(address) {
-  const dataToSrv = { jsonrpc: '2.0',
+  const dataToSrv = JSON.stringify({ jsonrpc: '2.0',
     method: 'getTransactionCount',
     params: [address],
-    id: 1 };
-  return axios.post(provider, dataToSrv);
+    id: 1 });
+  return postToNode({
+    data: dataToSrv,
+  });
 }
 
 async function getTransactionByHash(txHash) {        
   const dataToSrv = JSON.stringify({ jsonrpc: '2.0',
-    method: 'getTransactionByHash',
+    method: 'getTransactionById',
     params: [txHash],
+    id: 1 });
+  return postToNode({
+    data: dataToSrv,
+  });
+};
+
+async function getAccountData(accountAddr, blockNum, includeOtherShards) {        
+  const dataToSrv = JSON.stringify({ jsonrpc: '2.0',
+    method: 'getAccountData',
+    params: [accountAddr, blockNum, includeOtherShards],
+    id: 1 });
+  return postToNode({
+    data: dataToSrv,
+  });
+};
+
+async function getTransactionReceipt(txHash) {        
+  const dataToSrv = JSON.stringify({ jsonrpc: '2.0',
+    method: 'getTransactionReceipt',
+    params: [txHash],
+    id: 1 });
+  return postToNode({
+    data: dataToSrv,
+  });
+};
+
+async function getTransactionsByAddress(address, start, limit, transferTokenId) {        
+  const dataToSrv = JSON.stringify({ jsonrpc: '2.0',
+    method: 'getTransactionsByAddress',
+    params: [address, start, limit, transferTokenId],
+    id: 1 });
+  return postToNode({
+    data: dataToSrv,
+  });
+};
+
+
+async function getAllTransaction(fullShardKey, start, limit) {        
+  const dataToSrv = JSON.stringify({ jsonrpc: '2.0',
+    method: 'getAllTransaction',
+    params: [fullShardKey, start, limit],
     id: 1 });
   return postToNode({
     data: dataToSrv,
@@ -46,4 +97,5 @@ async function postToNode(dataToNode) {
   return response.result;
 }
 
-export { setProvider, call, getTransactionCount, getTransactionByHash }
+export { setProvider, call, getTransactionCount, getTransactionByHash, 
+         getAccountData, getTransactionReceipt, getNetworkId, getTransactionsByAddress, getAllTransaction }
