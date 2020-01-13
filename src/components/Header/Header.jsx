@@ -53,7 +53,7 @@ export default class Header extends PureComponent {
   }
   componentDidMount = () => {
     qcRpc.getNetworkId().then(networkInfo => {
-      this.state.networkId = networkInfo.networkId;
+      this.setState({networkId: networkInfo.networkId});
     });
   }
   openSetDialog = () => {
@@ -79,7 +79,7 @@ export default class Header extends PureComponent {
     this.setState({ nodeConfigVisible: false, nodeInfo });
     qcRpc.setProvider(nodeInfo);
     qcRpc.getNetworkId().then(networkInfo => {
-      this.state.networkId = networkInfo.networkId;
+      this.setState({networkId: networkInfo.networkId});
     });
     //history.push('/');
     location.reload(true);

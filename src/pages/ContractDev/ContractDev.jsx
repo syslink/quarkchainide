@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { Select } from '@icedesign/base';
-import { Button, Tab, Grid, Tree, Dialog, Collapse, Message, Input, Card, Checkbox, Table, Icon, Balloon } from '@alifd/next';
+import { Button, Tab, Grid, Tree, Dialog, Collapse, Message, 
+         Input, Card, Checkbox, Table, Icon, Balloon, Form } from '@alifd/next';
 import Container from '@icedesign/container';
 import * as hyperchain from 'hyperchain-web3';
 import {AbiCoder as EthersAbiCoder} from 'ethers/utils/abi-coder';
@@ -13,6 +14,7 @@ import QuarkChain from 'quarkchain-web3';
 import BigNumber from 'bignumber.js';
 import * as abiUtil from 'ethereumjs-abi';
 import CopyToClipboard from 'react-copy-to-clipboard';
+import EthCrypto from 'eth-crypto';
 
 import * as utils from '../../utils/utils';
 import * as qcRpc from '../../utils/quarkchainRPC';
@@ -24,6 +26,7 @@ import * as CompilerSrv from './CompilerSrv';
 import './ContractDev.scss';
 
 const { Row, Col } = Grid;
+const FormItem = Form.Item;
 const TreeNode = Tree.Node;
 const Panel = Collapse.Panel;
 
@@ -202,7 +205,7 @@ const ContractCollapse = ({self, contractAccountInfo}) => {
 const ActionType = { DeployContract: 0, InvokeContract: 1, UpdateContract: 2 }
 const NetworkType = { TestNet: 0, Mainnet: 1, MetaMask: 2, LocalNode: 3, OtherNode: 4}
 
-const pwdPlaceholder = T("钱包密码，由数字加字母组成，不少于8位");
+const addrPlaceholder = T("0x开头的私钥");
 
 export default class ContractManager extends Component {
   static displayName = 'ContractManager';
@@ -220,6 +223,7 @@ export default class ContractManager extends Component {
     this.state = {
       fullShardKey: '00000000',
       networkId: '0xff',
+      qkcTokenId: '0x8bb0',
       password: '',
       httpReg: new RegExp('^(?=^.{3,255}$)(http(s)?:\/\/)?(www\.)?[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+(:\d+)*(\/\w+\.\w+)*$'),
       networks:[{label: '通过MetaMask连接夸克', value: NetworkType.MetaMask}, {label: '本地节点', value: NetworkType.LocalNode}, {label: '自定义节点', value: NetworkType.OtherNode}],
@@ -273,6 +277,8 @@ export default class ContractManager extends Component {
       displayAbiVisible: false,
       displayBinVisible: false,
       accountInfoDialogVisible: false,
+      addNewAddrDialogVisible: false,
+      txConfirmVisible: false,
       curAbi: null,
       curBin: null,
       loadedContractAddress: '',
@@ -308,6 +314,9 @@ export default class ContractManager extends Component {
                           <Button type='primary' onClick={this.queryAccount.bind(this)}>{T('刷新')}</Button>
                           <Button type='normal' onClick={this.onAccountInfoClose.bind(this)}>{T('取消')}</Button>
                         </view>),
+      transferableAssets: [],    
+      assetAmountTip: '',
+      selecteAssetInfo: null,                    
      };
       
     const solFileList = global.localStorage.getItem('solFileList');
@@ -637,16 +646,8 @@ export default class ContractManager extends Component {
     Message.success(T('地址已复制到粘贴板'));
   }
 
-  addAddress = () => {
-    const keystoreList = utils.loadKeystoreFromLS();    
-    const key = Keystore.generateKey();
-    key.address = key.address;
-    this.state.keystoreInfo[key.address] = key;
-    this.state.addresses.push({label: key.address, value: key.address});
-    keystoreList.push(key);
-    utils.storeDataToFile(Constant.KeyStoreFile, keystoreList);
-    this.setState({addresses: this.state.addresses});
-    Message.success(T('地址添加成功'));
+  addNewAddress = () => {
+    this.setState({addNewAddrDialogVisible: true});
   }
 
   getAccountData = () => {
@@ -658,6 +659,63 @@ export default class ContractManager extends Component {
     qcRpc.getAccountData(this.state.selectedAccountAddress + this.state.fullShardKey, null, true).then(accountData => {
       this.setState({accountInfoDialogVisible: true, accountShardsInfo: accountData.shards, queryedAddress: this.state.selectedAccountAddress});
     });
+  }
+
+  getFullShardKeyInfo = (fullShardKey) => {
+    const fullShardKeyValue = parseInt(fullShardKey);
+    const chainId = fullShardKeyValue >> 16;
+    const shardId = fullShardKeyValue & (this.state.chainShardsInfo['ChainId:' + chainId] - 1);
+    return {chainId, shardId};
+  }
+
+  compareFullShardKey = (firstFullShardKeyInfo, secondFullShardKeyInfo) => {
+    return (firstFullShardKeyInfo.chainId == secondFullShardKeyInfo.chainId) 
+        && (firstFullShardKeyInfo.shardId == secondFullShardKeyInfo.shardId);
+  }
+
+  transferAsset = async () => {
+    this.state.transferableAssets = [];
+    const fullShardKeyInfo1 = this.getFullShardKeyInfo('0x' + this.state.fullShardKey);
+    const accountData = await qcRpc.getAccountData(this.state.selectedAccountAddress + this.state.fullShardKey, null, true);
+    if (accountData.shards == null) {
+      const fullShardKeyInfo2 = this.getFullShardKeyInfo(accountData.primary.fullShardId);
+      if (!this.compareFullShardKey(fullShardKeyInfo1, fullShardKeyInfo2)) {
+        Message.error('对不起，您未拥有任何资产，因此不可进行转账');
+        return;
+      }
+      accountData.primary.label = accountData.primary.tokenStr;
+      accountData.primary.value = accountData.primary.tokenId;
+      this.state.transferableAssets = [accountData.primary];
+    } else {
+      for (let i = 0; i < accountData.shards.length; i++) {
+        const shard = accountData.shards[i];
+        const fullShardKeyInfo2 = this.getFullShardKeyInfo(shard.fullShardId);
+        if (!this.compareFullShardKey(fullShardKeyInfo1, fullShardKeyInfo2)) {
+          continue;
+        }
+        for (let j = 0; j < shard.balances.length; j++) {
+          const wrapperedToken = utils.deepClone(shard.balances[j]);
+          wrapperedToken.label = wrapperedToken.tokenStr;
+          wrapperedToken.value = wrapperedToken.tokenId;
+          this.state.transferableAssets.push(wrapperedToken);
+        }
+      }
+    }
+    if (this.state.transferableAssets.length == 0) {
+      Message.error('对不起，您未拥有任何资产，因此不可进行转账');
+      return;
+    }
+    let assetAmount;
+    let selecteAssetInfo;
+    this.state.transferableAssets.map(assetInfo => {
+      if (assetInfo.value == this.state.qkcTokenId) {
+        assetAmount = new BigNumber(assetInfo.balance).shiftedBy(-18) + ' ' + assetInfo.tokenStr;
+        selecteAssetInfo = assetInfo;
+      }
+    });
+
+    this.setState({txConfirmVisible: true, transferableAssets: this.state.transferableAssets,
+                   assetAmountTip: '当前余额:' + assetAmount, selecteAssetInfo});
   }
 
   findImports = (path) => {
@@ -991,6 +1049,10 @@ export default class ContractManager extends Component {
       txParams.fromFullShardKey = '0x' + this.state.fullShardKey;
       txParams.toFullShardKey = '0x' + this.state.fullShardKey;
 
+      if (this.state.keystoreInfo[this.state.selectedAccountAddress] != null) {
+        this.state.web3.qkc.setPrivateKey(this.state.keystoreInfo[this.state.selectedAccountAddress].privateKey);
+      }
+
       const self = this;
       this.state.web3.qkc.sendTransaction(txParams).then((transactionId) => {
         if (transactionId.startsWith('0x0000000000000000')) {
@@ -1154,6 +1216,7 @@ export default class ContractManager extends Component {
   addSolFile = () => {
     this.setState({addNewContractFileVisible: true});
   }
+
   saveSolFile = () => {
     if (this.state.selectContactFile.length > 0) {
       const index = this.state.solFileList.indexOf(this.state.selectContactFile);
@@ -1166,25 +1229,32 @@ export default class ContractManager extends Component {
       Message.error('请先选中需保存到本地的合约文件');
     }
   }
+
   handleContractNameChange = (value) => {
     this.state.newContractFileName = value;
   }
+
   handleContractAccountNameChange = (value) => {
     this.setState({newContractAccountName: value});
   }
+
   handleContractPublicKeyChange = (value) => {
     this.setState({newContractPublicKey: value});
   }
+
   handleFTAmountChange = (value) => {
     this.setState({ftAmount: value});
   }
-  handlePasswordChange = (v) => {
-    this.state.password = v;
-  }
 
-  handleAddressChange = (v) => {
-    this.state.queryedAddress = v;
-    this.setState({queryedAddress: v});
+  handleNewAddrChange = (v) => {
+    this.state.privateKey = v;
+    if (v.length == 66) {
+      const pubKey = EthCrypto.publicKeyByPrivateKey(this.state.privateKey);
+      const address = EthCrypto.publicKey.toAddress(pubKey);
+      this.setState({privateKey: this.state.privateKey, newAddr: address});
+    } else {
+      this.setState({privateKey: this.state.privateKey});
+    }
   }
 
   queryAccount = () => {
@@ -1399,7 +1469,7 @@ export default class ContractManager extends Component {
   }
 
   shareCodeTx = () => {
-
+    Message.success('即将上线，敬请期待');
   }
 
   selectShareCodeAccount = (v) => {
@@ -1512,7 +1582,45 @@ export default class ContractManager extends Component {
     this.setState({
       accountInfoDialogVisible: false,
     });
-  };
+  };  
+
+  generateNewKey = () => { 
+    const key = Keystore.generateKey();
+    this.setState({privateKey: key.privateKey, newAddr: key.address});
+  }
+
+  handleAddressChange = (v) => {
+    this.state.queryedAddress = v;    
+    this.setState({queryedAddress: v});
+  }
+
+  onAddNewAddrOK = () => {
+    if (utils.isEmptyObj(this.state.privateKey)) {
+      Message.error('请输入私钥');
+      return;
+    }
+    if (this.state.privateKey.length != 66) {
+      Message.error('请输入合法的私钥');
+      return;
+    }
+    const pubKey = EthCrypto.publicKeyByPrivateKey(this.state.privateKey);
+    const address = EthCrypto.publicKey.toAddress(pubKey);
+    const key = {privateKey: this.state.privateKey, publicKey: pubKey, address};
+    this.state.keystoreInfo[address] = key;
+    this.state.addresses.push({label: address, value: address});
+    
+    const keystoreList = utils.loadKeystoreFromLS();    
+    keystoreList.push(key);
+    utils.storeDataToFile(Constant.KeyStoreFile, keystoreList);
+    this.setState({addresses: this.state.addresses, addNewAddrDialogVisible: false});
+    Message.success(T('地址添加成功'));
+  }
+  
+  onAddNewAddrClose = () => {
+    this.setState({
+      addNewAddrDialogVisible: false,
+    });
+  }
 
   balancesRender = (balances) => {
     let newBalances = utils.deepClone(balances);
@@ -1521,12 +1629,86 @@ export default class ContractManager extends Component {
       return balance;
     });
     return <ReactJson src={newBalances}/>;
+  }  
+  handleReceiverChange (v) {
+    this.state.receiver = v;
+  }
+  
+  handleAssetAmountChange(v) {
+    this.state.assetAmount = v;
+  }
+
+  handleGasPriceChange(v) {
+    this.state.gasPrice = v;
+  }
+
+  handleGasLimitChange(v) {
+    this.state.gasLimit = v;
+  }
+
+  handleRemarkChange(v) {
+    this.state.remark = v;
+  }
+
+  onTxConfirmOK = (values) => {
+    values.value = '0x' + new BigNumber(values.value).shiftedBy(18).toString(16);
+    values.gas = '0x' + new BigNumber(values.gas).toString(16);
+    values.gasPrice = '0x' + new BigNumber(values.gasPrice).shiftedBy(9).toString(16);
+
+    values.gasTokenId = this.state.qkcTokenId;
+    values.transferTokenId = this.state.selecteAssetInfo.tokenId;
+    values.networkId = this.state.networkId;
+    values.fromFullShardKey = '0x' + values.from.substr(values.from.length - 8);
+    values.toFullShardKey = '0x' + values.to.substr(values.to.length - 8);
+
+    console.log(values);
+
+    if (this.state.keystoreInfo[values.from] != null) {
+      this.state.web3.qkc.setPrivateKey(this.state.keystoreInfo[values.from].privateKey);
+    }
+
+    Message.success('开始发送转账交易');
+    const self = this;
+    const txParams = values;
+    this.state.web3.qkc.sendTransaction(txParams).then((transactionId) => {
+      if (transactionId.startsWith('0x0000000000000000')) {
+        Message.error('交易提交失败，请检查原因');
+        return;
+      } 
+      Message.success('交易提交成功，等待区块生成');
+      self.addLog('交易发送成功，ID = ' + transactionId + ' ，等待被矿工打包');       
+      self.onTxConfirmClose();
+      
+      self.checkReceipt('转账', transactionId, async (receipt) => {
+        Message.success('转账成功');  
+      });
+    });
+  }
+
+  onTxConfirmClose = () => {
+    this.setState({txConfirmVisible: false});
+  }
+
+  selectAssetType = (v) => {
+    this.state.transferableAssets.map(assetInfo => {
+      if (assetInfo.value == v) {
+        const assetAmount = new BigNumber(assetInfo.balance).shiftedBy(-18) + ' ' + assetInfo.tokenStr;
+        this.setState({assetAmountTip: '当前余额:' + assetAmount, selecteAssetInfo: assetInfo});
+      }
+    });
   }
 
   render() {
     global.localStorage.setItem("solFileList", this.state.solFileList);
-    const triggerBtn = <Button text iconSize='large' style={{marginBottom: "5px"}} onClick={() => this.setState({resultInfo: '日志输出:\n'})}><Icon type="ashbin" size='large'/></Button>;
-              
+    const triggerBtn = <Button text iconSize='large' style={{marginBottom: "5px"}} onClick={() => this.setState({resultInfo: '日志输出:\n'})}><Icon type="ashbin" size='large'/></Button>;    
+    const formItemLayout = {
+      labelCol: {
+          fixedSpan: 4
+      },
+      wrapperCol: {
+          span: 20
+      }
+    };                                
     const self = this;
     return (
       <div>
@@ -1653,11 +1835,13 @@ export default class ContractManager extends Component {
               </Row>
               <br/>
               <Row style={{width: '100%'}}>
-                <Button type="primary" onClick={this.copyAddress.bind(this)}>{T("复制完整账号")}</Button>
-                &nbsp;&nbsp;&nbsp;
-                <Button type="primary" onClick={this.addAddress.bind(this)}>{T("添加新账号")}</Button>
-                &nbsp;&nbsp;&nbsp;
-                <Button type="primary" onClick={this.getAccountData.bind(this)}>{T("查询账号")}</Button>
+                <Button type="primary" onClick={this.copyAddress.bind(this)}>{T("复制账号")}</Button>
+                &nbsp;&nbsp;
+                <Button type="primary" onClick={this.addNewAddress.bind(this)}>{T("添加账号")}</Button>
+                &nbsp;&nbsp;
+                <Button type="primary" onClick={this.getAccountData.bind(this)}>{T("查账号")}</Button>
+                &nbsp;&nbsp;
+                <Button type="primary" onClick={this.transferAsset.bind(this)}>{T("转账")}</Button>
               </Row>
               <br/>
               <Row style={{width: '100%'}}>
@@ -1818,30 +2002,35 @@ export default class ContractManager extends Component {
         >
           <IceEllipsis lineNumber={10} text= {this.state.curBin} />
         </Dialog>
-        {/* <Dialog
-          visible={this.state.pwdDialogVisible}
-          onOk={this.onPwdOK.bind(this)}
-          onCancel={this.onPwdClose}
-          onClose={this.onPwdClose}
-          title={T("输入密码")}
+        <Dialog
+          visible={this.state.addNewAddrDialogVisible}
+          onOk={this.onAddNewAddrOK.bind(this)}
+          onCancel={this.onAddNewAddrClose}
+          onClose={this.onAddNewAddrClose}
+          title={T("新账号")}
           footerAlign="center"
         >
           <Input hasClear
-            htmlType="password"
-            onChange={this.handlePasswordChange.bind(this)}
+            onChange={this.handleNewAddrChange.bind(this)}
             style={{ width: 400 }}
-            addonTextBefore={T("密码")}
-            placeholder={T(pwdPlaceholder)}
+            addonTextBefore={T("账户私钥")}
+            placeholder={T(addrPlaceholder)}
             size="medium"
-            defaultValue=""
-            maxLength={20}
+            value={this.state.privateKey}
+            maxLength={66}
             hasLimitHint
-            onPressEnter={this.onPwdOK.bind(this)}
+            onPressEnter={this.onAddNewAddrOK.bind(this)}
           />
-          <br/>
-          <br/>
-          注意:刷新/切换/关闭本页面后，需重新输入密码
-        </Dialog> */}
+          &nbsp;&nbsp;
+          <Button type="primary" onClick={this.generateNewKey.bind(this)}>{T("自动生成")}</Button>
+          <br/><br/>
+          <Input hasClear readOnly
+            style={{ width: 400 }}
+            addonTextBefore={T("账户地址")}
+            size="medium"
+            value={this.state.newAddr}
+          />
+        </Dialog>
         <Dialog style={{ width: "50%" }}
           visible={this.state.accountInfoDialogVisible}
           onOk={this.onAccountInfoClose.bind(this)}
@@ -1872,7 +2061,48 @@ export default class ContractManager extends Component {
             <Table.Column title="是否合约" dataIndex="isContract" cell={isContract => isContract ? '是' : '否'}/>
           </Table>
         </Dialog>
-        
+        <Dialog style={{ width: "30%" }}
+          visible={this.state.txConfirmVisible}
+          title={"转账交易"}
+          closeable="close,esc,mask"
+          footer={false}
+          onOk={this.onTxConfirmOK.bind(this)}
+          onCancel={this.onTxConfirmClose.bind(this)}
+          onClose={this.onTxConfirmClose.bind(this)}
+        >
+          <Form style={{width: '100%'}} {...formItemLayout} >
+            <FormItem label="付款方">
+                <Input name="from" readonly defaultValue={this.state.selectedAccountAddress + this.state.fullShardKey} />
+            </FormItem>
+            <FormItem label="收款方" required asterisk autoValidate length={50}>
+                <Input name="to" hasClear autoFocus hasLimitHint/>
+            </FormItem>
+            <FormItem label="付款金额" required asterisk autoValidate format='number' help={this.state.assetAmountTip}>
+                <Input name="value" hasClear hasLimitHint 
+                addonAfter={<Select defaultValue={this.state.qkcTokenId} 
+                                    dataSource={this.state.transferableAssets} 
+                                    onChange={this.selectAssetType.bind(this)}/>}
+                                    />
+            </FormItem>
+            <FormItem label="GAS单价" required asterisk autoValidate format='number'>
+                <Input name="gasPrice" hasClear hasLimitHint addonAfter='Gwei' defaultValue='10'/>
+            </FormItem>
+            <FormItem label="GAS上限" required asterisk autoValidate format='number'>
+                <Input name="gas" hasClear hasLimitHint defaultValue='30000'/>
+            </FormItem>
+            <FormItem label="备注">
+                <Input.TextArea name="data" hasClear hasLimitHint maxLength={1024}/>
+            </FormItem>
+            
+            <Row>
+                <Col style={{ textAlign: 'right' }}>
+                  <Form.Submit type="primary" onClick={this.onTxConfirmOK}>确认</Form.Submit>
+                  &nbsp;&nbsp;
+                  <Form.Submit onClick={this.onTxConfirmClose}>取消</Form.Submit>
+                </Col>
+            </Row>
+          </Form>
+        </Dialog>
 
       </div>
     );
