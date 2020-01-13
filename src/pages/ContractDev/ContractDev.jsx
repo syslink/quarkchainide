@@ -279,6 +279,8 @@ export default class ContractManager extends Component {
       accountInfoDialogVisible: false,
       addNewAddrDialogVisible: false,
       txConfirmVisible: false,
+      accountTxsVisible: false,
+      accountTxsInfo: [],
       curAbi: null,
       curBin: null,
       loadedContractAddress: '',
@@ -1289,9 +1291,26 @@ export default class ContractManager extends Component {
     });
   }
 
-  getTxsByAddr = () => {
-    qcRpc.getTransactionsByAddress(this.state.queryedAddress + this.state.fullShardKey, '0x00', '0xff', "0x8bb0").then(txs => {
-      console.log(txs);
+  getTxsByAddr = (address) => {
+    this.setState({accountTxsVisible: true});
+    this.state.accountTxsInfo = [];    
+    this.iterAccountTxs(address, '');
+  }
+
+  iterAccountTxs = (address, next) => {
+    qcRpc.getTransactionsByAddress(address, next, '', this.state.qkcTokenId).then(result => {
+      this.state.accountTxsInfo.push(result.txList.map(tx => {
+        tx.blockHeight = parseInt(tx.blockHeight);
+        tx.value = new BigNumber(tx.value).shiftedBy(-18).toString(10) + ' ' + tx.transferTokenStr;
+        const date = new Date();
+        date.setTime(parseInt(tx.timestamp) * 1000);
+        tx.timestamp = date.toLocaleString();
+        return tx;
+      }));
+      this.setState({accountTxsInfo: this.state.accountTxsInfo});
+      if (result.txList.length == 20) {
+        this.iterAccountTxs(address, result.next);
+      }
     });
   }
 
@@ -1630,6 +1649,13 @@ export default class ContractManager extends Component {
     });
     return <ReactJson src={newBalances}/>;
   }  
+
+  txsRender = (v, index) => {
+    const shardInfo = this.state.accountShardsInfo[index];
+    const fullShardKey = '000' + parseInt(shardInfo.chainId) + '000' + parseInt(shardInfo.shardId);
+    return <Button text onClick={() => {this.getTxsByAddr(this.state.queryedAddress + fullShardKey);}}>{parseInt(v)}(点击查看)</Button>
+  }
+
   handleReceiverChange (v) {
     this.state.receiver = v;
   }
@@ -2056,10 +2082,22 @@ export default class ContractManager extends Component {
             <Table.Column title="链Id" dataIndex="chainId" cell={chainId => parseInt(chainId)}/>
             <Table.Column title="分片Id" dataIndex="shardId" cell={shardId => parseInt(shardId)}/>
             <Table.Column title="资产" dataIndex="balances" cell={this.balancesRender} width={'50%'}/>
-            <Table.Column title="总交易数" dataIndex="transactionCount" 
-                          cell={count => <Button text onClick={() => {this.getTxsByAddr();}}>{parseInt(count)}</Button>}/>
+            <Table.Column title="总交易数" dataIndex="transactionCount" cell={this.txsRender.bind(this)}/>
             <Table.Column title="是否合约" dataIndex="isContract" cell={isContract => isContract ? '是' : '否'}/>
           </Table>
+        </Dialog>
+        <Dialog style={{ width: "50%" }}
+          visible={this.state.accountTxsVisible}
+          closeable="close,esc,mask"
+          onOk={() => this.setState({accountTxsVisible: false})}
+          onCancel={() => this.setState({accountTxsVisible: false})}
+          onClose={() => this.setState({accountTxsVisible: false})}
+          title={T("交易信息")}
+          footerAlign="center"
+          shouldUpdatePosition={true}
+          isFullScreen={true}
+        >
+          <ReactJson src={this.state.accountTxsInfo}/>
         </Dialog>
         <Dialog style={{ width: "30%" }}
           visible={this.state.txConfirmVisible}
