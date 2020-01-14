@@ -1,4 +1,4 @@
-const compileSrvAddr = "http://13.113.194.34:8888";  // aws
+const compileSrvAddr = "http://sol0511Srv.xchainunion.com";  // aws
 let userFileAddr = compileSrvAddr + "/solidity/";
 let libFileAddr = compileSrvAddr + "/libsList/";
 let sampleFileAddr = compileSrvAddr + "/sampleCodeList/";
