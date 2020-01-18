@@ -533,7 +533,7 @@ const ch2en = {
   "QKC": "QKC",
   "Receipt信息": "Receipt Information",
   "合约开发": "Contract Development",
-  "应用体验": "DApp Experience",
+  "应用体验": "DApps",
   "学习资料": "Learning",
   "交易/账户查询": "Tx&Account",
   "分享您的合约代码": "Share your code",
@@ -545,6 +545,7 @@ const ch2en = {
   "去中心化应用展示": "DApp View",
   "请选择需要部署的合约": "Please select the contract to be deployed.",
   "请输入合约地址": "Please input address of contract",
+  "合约文件名": "Name",
   }
 
   let isCh = true;
