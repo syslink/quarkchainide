@@ -46,8 +46,8 @@ export default class Header extends PureComponent {
       customNodeDisabled: true,
       languages: [{value: 'ch', label:'中文'}, {value: 'en', label:'English'}],
       defaultLang: (defaultLang == null || defaultLang == 'ch') ? 'ch' : 'en',
-      nodes: [{value: constant.mainNetRPCAddr, label:'主网' + constant.mainNetRPCAddr}, {value: constant.testNetRPCAddr, label:'测试网' + constant.testNetRPCAddr}, 
-              {value: constant.LocalRPCAddr, label:'本地节点' + constant.LocalRPCAddr}, {value: 'others', label: '自定义'}],
+      nodes: [{value: constant.mainNetRPCAddr, label:T('主网') + constant.mainNetRPCAddr}, {value: constant.testNetRPCAddr, label:T('测试网') + constant.testNetRPCAddr}, 
+              {value: constant.LocalRPCAddr, label:T('本地节点') + constant.LocalRPCAddr}, {value: 'others', label: T('自定义')}],
     };
     setLang(this.state.defaultLang);
   }
@@ -65,6 +65,7 @@ export default class Header extends PureComponent {
   onChangeLanguage = (v) => {
     cookie.save('defaultLang', v, {path: '/', maxAge: 3600 * 24 * 360});
     setLang(v);
+    this.setState({defaultLang: v});
     history.push('/');
   }
   onChangeNode = (v) => {
@@ -101,7 +102,7 @@ export default class Header extends PureComponent {
         className={cx('ice-design-layout-header')}
         style={{ ...style, width }}
       >
-        <Logo />
+        <Logo networkType={(this.state.networkId == 1) ?  T("主网") : T("测试网")}/>
         <div
           className="ice-design-layout-header-menu"
           style={{ display: 'flex' }}
@@ -120,14 +121,14 @@ export default class Header extends PureComponent {
                 const linkProps = {};
                 if (nav.children) {
                   subMenu = {items: []};
-                  subMenu.label = nav.name;
+                  subMenu.label = T(nav.name);
                   nav.children.map(item => {
                     if (item.newWindow) {
-                      subMenu.items.push({value: item.name, href: item.path, target: '_blank'});
+                      subMenu.items.push({value: T(item.name), href: item.path, target: '_blank'});
                     } else if (item.external) {
-                      subMenu.items.push({value: item.name, href: item.path});
+                      subMenu.items.push({value: T(item.name), href: item.path});
                     } else {
-                      subMenu.items.push({value: item.name, to: item.path});
+                      subMenu.items.push({value: T(item.name), to: item.path});
                     }
                   });
                 } else if (nav.newWindow) {
@@ -158,11 +159,11 @@ export default class Header extends PureComponent {
                   <MenuItem key={idx}>
                     {linkProps.to ? (
                       <Link {...linkProps}>
-                        {!isMobile ? nav.name : null}
+                        {!isMobile ? T(nav.name) : null}
                       </Link>
                     ) : (
                       <a {...linkProps}>
-                        {!isMobile ? nav.name : null}
+                        {!isMobile ? T(nav.name) : null}
                       </a>
                     )}
                   </MenuItem>

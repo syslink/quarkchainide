@@ -1,28 +1,25 @@
 import React, { PureComponent } from 'react';
 import { Link } from 'react-router-dom';
 import * as qcRpc from '../../utils/quarkchainRPC';
+import { T } from '../../utils/lang';
 
 export default class Logo extends PureComponent {
   constructor(props) {
     super(props);
     this.state = {
-      networkType: 'QuarkChain',
+      networkType: '主网',
     };
   }
-  componentDidMount = () => {
-    qcRpc.getNetworkId().then(networkInfo => {
-      let networkType = 'QuarkChain-测试网';
-      if (networkInfo.networkId == 1) {
-        networkType = 'QuarkChain-主网';
-      }
-      this.setState({networkType});
-    })
+  componentDidMount = () => {    
+  }
+  componentWillReceiveProps(nextProps) {
+    this.setState({networkType: nextProps.networkType});
   }
   render() {
     return (
       <div className="logo" style={{}}>
         <Link to="/" className="logo-text">
-          {this.state.networkType}
+          QuarkChain<font  size='3'>{this.state.networkType}</font>
         </Link>
       </div>
     );

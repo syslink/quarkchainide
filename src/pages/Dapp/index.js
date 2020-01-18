@@ -4,6 +4,7 @@ import { Grid } from '@alifd/next';
 import { Link } from 'react-router-dom';
 import { enquireScreen } from 'enquire-js';
 import styles from './index.module.scss';
+import { T } from '../../utils/lang';
 
 const { Row, Col } = Grid;
 
@@ -66,7 +67,7 @@ export default function BrandDisplay() {
   return (
     <div className={styles.container}>
       <div className={styles.brandHeader}>
-        <h5 className={styles.brandTitle}>去中心化应用展示</h5>
+        <h5 className={styles.brandTitle}>{T('去中心化应用展示')}</h5>
       </div>
       <Row gutter="20" wrap>
         {dataSource.map((item, index) => {

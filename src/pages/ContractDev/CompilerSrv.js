@@ -1,7 +1,11 @@
-const compileSrvAddr = "http://sol0511Srv.xchainunion.com";  // aws
-let userFileAddr = compileSrvAddr + "/solidity/";
-let libFileAddr = compileSrvAddr + "/libsList/";
-let sampleFileAddr = compileSrvAddr + "/sampleCodeList/";
+const compileSrvAddr = "http://sol0511Srv.xchainunion.com";
+const chainName = "quarkChain";
+const userFilePath = "/solidity/";
+const libFilePath = "/libsList/?" + chainName;
+const sampleFilePath = "/sampleCodeList/?" + chainName;
+let userFileAddr = compileSrvAddr + userFilePath;
+let libFileAddr = compileSrvAddr + libFilePath;
+let sampleFileAddr = compileSrvAddr + sampleFilePath;  // aws
 
 
 const  OpSolType = {
@@ -16,9 +20,9 @@ const  OpSolType = {
 }
 
 export function changeSrv(compileSrv) {
-  userFileAddr = compileSrv + '/solidity/';
-  libFileAddr = compileSrv + '/libsList/';
-  sampleFileAddr = compileSrv + '/sampleCodeList/';
+  userFileAddr = compileSrv + userFilePath;
+  libFileAddr = compileSrv + libFilePath;
+  sampleFileAddr = compileSrv + sampleFilePath;
 }
 
 export async function getLibSolFile() {
@@ -35,9 +39,10 @@ export async function getSampleSolFile() {
 
 export function addSol(accountName, solFileName) {
   const dataToSrv = JSON.stringify({ type: OpSolType.AddSol,
-    accountName: accountName,
+    chainName,
+    accountName,
     sharedAccountName: '',
-    solFileName: solFileName,
+    solFileName,
     newSolFileName: "",
     solFileContent: ""});
   fetch(userFileAddr, 
@@ -49,9 +54,10 @@ export function addSol(accountName, solFileName) {
 
 export function delSol(accountName, solFileName) {
   const dataToSrv = JSON.stringify({ type: OpSolType.DelSol,
-    accountName: accountName,
+    chainName,
+    accountName,
     sharedAccountName: '',
-    solFileName: solFileName,
+    solFileName,
     newSolFileName: "",
     solFileContent: ""});
   fetch(userFileAddr, 
@@ -63,11 +69,12 @@ export function delSol(accountName, solFileName) {
 
 export function updateSol(accountName, solFileName, solFileContent) {
   const dataToSrv = JSON.stringify({ type: OpSolType.UpdateSol,
-    accountName: accountName,
+    chainName,
+    accountName,
     sharedAccountName: '',
-    solFileName: solFileName,
+    solFileName,
     newSolFileName: "",
-    solFileContent: solFileContent});
+    solFileContent});
   fetch(userFileAddr, 
         {headers: { "Content-Type": "application/json" }, method: 'POST', body: dataToSrv})
   .then(resp => {
@@ -77,7 +84,8 @@ export function updateSol(accountName, solFileName, solFileContent) {
 
 export async function listSol(accountName) {
   const dataToSrv = JSON.stringify({ type: OpSolType.ListSol,
-    accountName: accountName,
+    chainName,
+    accountName,
     sharedAccountName: '',
     solFileName: "",
     newSolFileName: "",
@@ -91,10 +99,11 @@ export async function listSol(accountName) {
 
 export function renameSol(accountName, solFileName, newSolFileName) {
   const dataToSrv = JSON.stringify({ type: OpSolType.RenameSol,
-    accountName: accountName,
+    chainName,
+    accountName,
     sharedAccountName: '',
-    solFileName: solFileName,
-    newSolFileName: newSolFileName,
+    solFileName,
+    newSolFileName,
     solFileContent: ""});
   fetch(userFileAddr, 
         {headers: { "Content-Type": "application/json" }, method: 'POST', body: dataToSrv})
@@ -105,9 +114,10 @@ export function renameSol(accountName, solFileName, newSolFileName) {
 
 export async function compileSol(accountName, solFileName) {
   const dataToSrv = JSON.stringify({ type: OpSolType.CompileSol,
-    accountName: accountName,
+    chainName,
+    accountName,
     sharedAccountName: '',
-    solFileName: solFileName,
+    solFileName,
     newSolFileName: "",
     solFileContent: ""});
   let resp = await fetch(userFileAddr, 
@@ -119,9 +129,10 @@ export async function compileSol(accountName, solFileName) {
 
 export async function listSharedSol(accountName, sharedAccountName) {
   const dataToSrv = JSON.stringify({ type: OpSolType.ListSharedAccount,
-    accountName: accountName,
-    sharedAccountName: sharedAccountName,
-    solFileName: solFileName,
+    chainName,
+    accountName,
+    sharedAccountName,
+    solFileName,
     newSolFileName: "",
     solFileContent: ""});
   let resp = await fetch(userFileAddr, 
@@ -133,9 +144,10 @@ export async function listSharedSol(accountName, sharedAccountName) {
 
 export async function getSharedSol(accountName, sharedAccountName, solFileName) {
   const dataToSrv = JSON.stringify({ type: OpSolType.GetSharedSol,
-    accountName: accountName,
-    sharedAccountName: sharedAccountName,
-    solFileName: solFileName,
+    chainName,
+    accountName,
+    sharedAccountName,
+    solFileName,
     newSolFileName: "",
     solFileContent: ""});
   let resp = await fetch(userFileAddr, 
