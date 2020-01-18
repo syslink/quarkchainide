@@ -1645,10 +1645,10 @@ export default class ContractManager extends Component {
     global.localStorage.setItem("solFileList", this.state.solFileList);
     const triggerBtn = <Button text iconSize='large' style={{marginBottom: "5px"}} onClick={() => this.setState({resultInfo: T('日志输出') + ':\n'})}><Icon type="ashbin" size='large'/></Button>;    
     
-    const copyAccountBtn = <Button text iconSize='medium' onClick={this.copyAddress.bind(this)}> <FoundationSymbol size="large" type='copy' /> </Button>
-    const addAccountBtn = <Button text iconSize='medium' onClick={this.addNewAddress.bind(this)}> <Icon size='large' type="add"/> </Button>
-    const searchAccountBtn = <Button text iconSize='medium' onClick={this.getAccountData.bind(this)}> <FoundationSymbol size="large" type='search' /> </Button>
-    const transferBtn = <Button text iconSize='medium' onClick={this.transferAsset.bind(this)}> <FoundationSymbol size="large" type='redpacket' /> </Button>        
+    const copyAccountBtn = <Button text iconSize='medium' onClick={this.copyAddress.bind(this)}> <FoundationSymbol size="small" type='copy' /> </Button>
+    const addAccountBtn = <Button text iconSize='medium' onClick={this.addNewAddress.bind(this)}> <Icon size='small' type="add"/> </Button>
+    const searchAccountBtn = <Button text iconSize='medium' onClick={this.getAccountData.bind(this)}> <FoundationSymbol size="small" type='search' /> </Button>
+    const transferBtn = <Button text iconSize='medium' onClick={this.transferAsset.bind(this)}> <FoundationSymbol size="small" type='redpacket' /> </Button>        
     const compilerLink = <a href='https://solidity.readthedocs.io/en/v0.5.11/' target='_blank'>v0.5.11</a>
     const formItemLayout = {
       labelCol: {
@@ -1773,9 +1773,9 @@ export default class ContractManager extends Component {
                 {this.state.networkName ? 'Network: ' + this.state.networkName : ''}
               </Row>
               <br/>
-              <Row style={{width: '100%'}} justify="space-between">
+              <Row style={{width: '100%'}} justify="space-between" align='bottom'>
                 <Select
-                  style={{ width: '65%' }}
+                  style={{ width: '70%' }}
                   placeholder={T("选择账号")}
                   onChange={this.onChangeAddress.bind(this)}
                   // defaultValue={this.state.addresses.length > 0 ? this.state.addresses[0] : ''}
@@ -1795,16 +1795,15 @@ export default class ContractManager extends Component {
                 </Balloon>
               </Row>
               <br/>
-              <Row style={{width: '100%'}}>
+              <Row style={{width: '100%'}} justify="space-between">
                 <Select
-                  style={{ width: 240 }}
+                  style={{ width: '70%' }}
                   placeholder={T("请选择待编译文件")}
                   onChange={this.onChangeContractFile.bind(this)}
                   value={this.state.selectedFileToCompile}
                   dataSource={this.state.solFileList}
                 />
-                &nbsp;&nbsp;&nbsp;
-                <Button type="primary" onClick={this.compileContract.bind(this)}>{T("编译")}</Button>
+                <Button style={{ width: '25%' }} type="primary" onClick={this.compileContract.bind(this)}>{T("编译")}</Button>
                 {/* &nbsp;&nbsp;&nbsp;
                 <Button type="primary" onClick={this.setCompilerVersion.bind(this)}>{T("配置")}</Button> */}
               </Row>
@@ -1814,20 +1813,18 @@ export default class ContractManager extends Component {
               </Row>
               
               <br/><br/>
-              <Row style={{width:'100%'}}>
+              <Row style={{width:'100%'}} justify="space-between">
                 <Select
-                  style={{ width: 240 }}
+                  style={{ width: '70%' }}
                   placeholder={T("请选择合约")}
                   onChange={this.onChangeContract.bind(this)}
                   dataSource={this.state.contractList}
                 />
-                &nbsp;&nbsp;&nbsp;
-                <Button type="primary" onClick={this.deployContract.bind(this)}>{T("部署")}</Button>
+                <Button style={{ width: '25%' }} type="primary" onClick={this.deployContract.bind(this)}>{T("部署")}</Button>
               </Row>
               <br/>
-              <Row style={{width:'100%'}}>
+              <Row style={{width:'70%'}} justify="space-between">
                 <Button type="primary" onClick={this.getAbi.bind(this)}>{T("查看ABI")}</Button>
-                &nbsp;&nbsp;
                 <Button type="primary" onClick={this.getBin.bind(this)}>{T("查看BIN")}</Button>
               </Row>
               <br/>
