@@ -1,6 +1,6 @@
 const ch2en = {
   "输入其它公钥":"Enter another public key",
-  "资产":"assets",
+  "资产":"Assets",
   "合约":"contract",
   "挖矿":"Mining",
   "名称":"name",
@@ -515,7 +515,7 @@ const ch2en = {
   "当前账号": "Current Account",
   "链Id": "Chain ID",
   "分片Id": "Shard ID",
-  "总交易数": "Total number of txs",
+  "总交易数": "Number of Txs",
   "是否合约": "Is Contract",
   "转账交易": "Transfer Tx",
   "付款方": "From Account",
@@ -546,6 +546,14 @@ const ch2en = {
   "请选择需要部署的合约": "Please select the contract to be deployed.",
   "请输入合约地址": "Please input address of contract",
   "合约文件名": "Name",
+  "发生错误:": "Error:",
+  "无法获取到交易信息": "Fail to get tx info",
+  "请输入十六进制的交易hash或账户地址": "Please input tx hash or account address",
+  "交易hash/账户地址，0x开头": "tx hash/account address, start with 0x",
+  "交易原始信息": "Tx Information",
+  "交易Receipt信息": "Tx Receipt Information",
+  "账户信息": "Account Information",
+  "交易原始信息": "Tx Information",
   }
 
   let isCh = true;

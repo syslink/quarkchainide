@@ -46,7 +46,7 @@ export default class TransactionTable extends Component {
             this.setState({accountShardsInfo: this.state.accountShardsInfo});
           }
         }).catch(error => {
-          Message.error('发生错误:' + error);
+          Message.error(T('发生错误:') + error);
         });
       } else {
         const txHash = hashOrAddr;
@@ -66,7 +66,7 @@ export default class TransactionTable extends Component {
         }
       }
     } else {
-      Message.prompt(T('请输入十六进制的交易hash或账户地址'));
+      Message.notice(T('请输入十六进制的交易hash或账户地址'));
     }
   }
 
@@ -125,12 +125,12 @@ export default class TransactionTable extends Component {
         <IceContainer style={styles.container}>
           <h4 style={styles.title}>{T('账户信息')}</h4>
           <Table dataSource={this.state.accountShardsInfo}>
-            <Table.Column title="链Id" dataIndex="chainId" cell={chainId => parseInt(chainId)}/>
-            <Table.Column title="分片Id" dataIndex="shardId" cell={shardId => parseInt(shardId)}/>
-            <Table.Column title="资产" dataIndex="balances" cell={this.balancesRender} width={'50%'}/>
-            <Table.Column title="总交易数" dataIndex="transactionCount" 
+            <Table.Column title={T("链Id")} dataIndex="chainId" cell={chainId => parseInt(chainId)}/>
+            <Table.Column title={T("分片Id")} dataIndex="shardId" cell={shardId => parseInt(shardId)}/>
+            <Table.Column title={T("资产")} dataIndex="balances" cell={this.balancesRender} width={'50%'}/>
+            <Table.Column title={T("总交易数")} dataIndex="transactionCount" 
                           cell={count => <Button text onClick={() => {this.getTxsByAddr();}}>{parseInt(count)}</Button>}/>
-            <Table.Column title="是否合约" dataIndex="isContract" cell={isContract => isContract ? '是' : '否'}/>
+            <Table.Column title={T("是否合约")} dataIndex="isContract" cell={isContract => isContract ? T('是') : T('否')}/>
           </Table>
         </IceContainer>
       </div>
