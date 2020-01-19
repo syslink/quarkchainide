@@ -42,9 +42,15 @@ export default class ContractEditor extends Component {
       console.log(latestCode);
     })
   }
+
   componentWillUnmount() {
     this.state.editor.dispose();
   }
+
+  componentWillReceiveProps(nextProps) {
+    this.setState({accountName: nextProps.accountName,fileName: nextProps.fileName});
+  }
+
   compile = () => {
     
     var input = {

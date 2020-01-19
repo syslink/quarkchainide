@@ -390,6 +390,7 @@ export default class ContractManager extends Component {
         this.state.libFileList.push(fileName);
         global.localStorage.setItem('sol:' + fileName, libFiles[fileName]);
       }
+      this.setState({libFileList: this.state.libFileList});
     });
     
     CompilerSrv.getSampleSolFile().then(sampleFiles => {
@@ -397,10 +398,10 @@ export default class ContractManager extends Component {
         this.state.smapleFileList.push(fileName);
         global.localStorage.setItem('sol:' + fileName, sampleFiles[fileName]);
       }  
+      this.setState({smapleFileList: this.state.smapleFileList});
     });
 
-    this.setState({libFileList: this.state.libFileList, smapleFileList: this.state.smapleFileList,
-                   addresses: this.state.addresses, selectedAccountAddress: this.state.addresses.length > 0 ? this.state.addresses[0] : ''});
+    this.setState({addresses: this.state.addresses, selectedAccountAddress: this.state.addresses.length > 0 ? this.state.addresses[0] : ''});
   }
 
   initAddresses = async () => {
@@ -1039,7 +1040,7 @@ export default class ContractManager extends Component {
       qcRpc.call(txParams, 'latest').then(ret => {
         ret = utils.parseResult(self.state.funcResultOutputs[contractAddress][funcName], ret);
         this.addLog(T("调用函数") + funcName + T("获得的结果") + '：' + ret);
-        self.state.result[contractAddress + funcName] = T('结果') + '：' + ret;
+        self.state.result[contractAddress + funcName] = {'result': ret};
         self.setState({result: self.state.result});
       });
     } else {
@@ -1719,7 +1720,7 @@ export default class ContractManager extends Component {
                 {
                   this.state.tabFileList.map(fileName =>
                           <Tab.Item closeable={true} key={fileName} title={fileName} tabStyle={{ height:'20px',opacity:0.2}}>
-                            <ContractEditor fileName={fileName} accountName={this.state.selectedAccountAddress}/>
+                            <ContractEditor fileName={fileName} accountName={self.state.selectedAccountAddress}/>
                           </Tab.Item>
                   )
                 }
